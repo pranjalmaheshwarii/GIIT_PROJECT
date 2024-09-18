@@ -1,54 +1,95 @@
-const express = require('express')
-const fetch = require('node-fetch')
-const router = express.Router()
+const express = require('express');
+const fetch = require('node-fetch');
+const router = express.Router();
 
-const host = 'http://backend-app:8000'
+const host = 'http://backend-app:8000';
 
-router.get('/', (req, res)=>{
-    res.render('index')
-})
+// Render the home page
+router.get('/', (req, res) => {
+    res.render('index');
+});
 
-router.get('/addData', (req, res)=>{
-    res.render('addData')
-})
+// Render the page to add data
+router.get('/addData', (req, res) => {
+    res.render('addData');
+});
 
-router.post('/addData', async(req, res)=>{
-    
+// Handle POST request to add data
+router.post('/addData', async (req, res) => {
     const empData = {
-        emp_name : req.body.emp_name,
+        emp_name: req.body.emp_name,
         emp_contact: req.body.emp_contact,
         emp_add: req.body.emp_add
-    }
+    };
     console.log(empData);
-    const body = JSON.stringify(empData)
-    console.log(body);
-    const response = await fetch(host, {method: 'POST', body: body,headers: {'Content-Type': 'application/json'} });
-    const data = await response.json();
-    // console.log(data);
-   
-    res.render('submitResponse', {data: data})
-})
 
-router.get('/list-employees', async(req, res)=>{
-    const response = await fetch(host, {headers: {'Content-Type': 'application/json'}});
-    const data = await response.json();
-    console.log(data);
-    res.render('listEmployee', {data: data})
-})
+    try {
+        const response = await fetch(`${host}/employees`, {
+            method: 'POST',
+            body: JSON.stringify(empData),
+            headers: {'Content-Type': 'application/json'}
+        });
 
-router.get('/delete/:emp_id', async(req, res)=>{
-    const emp_id = req.params.emp_id
-    const params = {
-        emp_id: emp_id
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        res.render('submitResponse', { data });
+    } catch (error) {
+        console.error('Error adding data:', error);
+        res.status(500).send('Internal Server Error');
     }
-    const body = JSON.stringify(params)
-    const deleteResponse = await fetch(host, {method: 'DELETE', body: body, headers: {'Content-Type': 'application/json'}});
-    const data1 = await deleteResponse.json();
-    console.log(data1);
-    const response = await fetch(host, {headers: {'Content-Type': 'application/json'}});
-    const data = await response.json();
-    // console.log(data);
-    res.render('listEmployee', {data: data})
-})
+});
 
-module.exports= router
+// List all employees
+router.get('/list-employees', async (req, res) => {
+    try {
+        const response = await fetch(`${host}/employees`, {
+            headers: {'Content-Type': 'application/json'}
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        res.render('listEmployee', { data });
+    } catch (error) {
+        console.error('Error listing employees:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+// Delete an employee
+router.get('/delete/:emp_id', async (req, res) => {
+    const emp_id = req.params.emp_id;
+    try {
+        const response = await fetch(`${host}/employees/${emp_id}`, {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'}
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Fetch the updated list of employees
+        const listResponse = await fetch(`${host}/employees`, {
+            headers: {'Content-Type': 'application/json'}
+        });
+
+        if (!listResponse.ok) {
+            throw new Error(`HTTP error! status: ${listResponse.status}`);
+        }
+
+        const data = await listResponse.json();
+        res.render('listEmployee', { data });
+    } catch (error) {
+        console.error('Error deleting employee:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+module.exports = router;
+
