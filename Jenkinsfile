@@ -30,7 +30,7 @@ pipeline {
             steps {
                 script {
                     // Build the frontend Docker image from the FrontEnd folder
-                    sh 'docker build -t ${FRONTEND_IMAGE} ./FrontEnd'
+                    sh 'sudo docker build -t ${FRONTEND_IMAGE} ./FrontEnd'
                 }
             }
         }
@@ -39,7 +39,7 @@ pipeline {
             steps {
                 script {
                     // Build the backend Docker image from the backend folder
-                    sh 'docker build -t ${BACKEND_IMAGE} ./backend'
+                    sh 'sudo docker build -t ${BACKEND_IMAGE} ./backend'
                 }
             }
         }
@@ -48,7 +48,7 @@ pipeline {
             steps {
                 script {
                     // Build the MySQL Docker image from the mysql folder
-                    sh 'docker build -t ${MYSQL_IMAGE} ./mysql'
+                    sh 'sudo docker build -t ${MYSQL_IMAGE} ./mysql'
                 }
             }
         }
@@ -57,7 +57,7 @@ pipeline {
             steps {
                 script {
                     // Login to Docker Hub using credentials configured in Jenkins
-                    sh 'echo $DOCKER_HUB_CREDENTIALS | docker login -u ${DOCKER_HUB_REPO} --password-stdin'
+                    sh 'echo $DOCKER_HUB_CREDENTIALS | sudo docker login -u ${DOCKER_HUB_REPO} --password-stdin'
                 }
             }
         }
@@ -66,7 +66,7 @@ pipeline {
             steps {
                 script {
                     // Push frontend image to Docker Hub
-                    sh 'docker push ${FRONTEND_IMAGE}'
+                    sh 'sudo docker push ${FRONTEND_IMAGE}'
                 }
             }
         }
@@ -75,7 +75,7 @@ pipeline {
             steps {
                 script {
                     // Push backend image to Docker Hub
-                    sh 'docker push ${BACKEND_IMAGE}'
+                    sh 'sudo docker push ${BACKEND_IMAGE}'
                 }
             }
         }
@@ -84,7 +84,7 @@ pipeline {
             steps {
                 script {
                     // Push MySQL image to Docker Hub
-                    sh 'docker push ${MYSQL_IMAGE}'
+                    sh 'sudo docker push ${MYSQL_IMAGE}'
                 }
             }
         }
@@ -94,8 +94,8 @@ pipeline {
                 script {
                     // Create the project network if it doesn't exist
                     sh '''
-                    if [ -z $(docker network ls --filter name=^${NETWORK_NAME}$ --format="{{ .Name }}") ]; then
-                        docker network create ${NETWORK_NAME}
+                    if [ -z $(sudo docker network ls --filter name=^${NETWORK_NAME}$ --format="{{ .Name }}") ]; then
+                        sudo docker network create ${NETWORK_NAME}
                     fi
                     '''
                 }
@@ -107,8 +107,8 @@ pipeline {
                 script {
                     // Pull and run MySQL container from Docker Hub
                     sh '''
-                    docker pull ${MYSQL_IMAGE}
-                    docker run -d --name mysql-container \
+                    sudo docker pull ${MYSQL_IMAGE}
+                    sudo docker run -d --name mysql-container \
                         --network ${NETWORK_NAME} \
                         -e MYSQL_ROOT_PASSWORD=Pranjal2607!@ \
                         -p 3306:3306 \
@@ -123,8 +123,8 @@ pipeline {
                 script {
                     // Pull and run Backend container from Docker Hub
                     sh '''
-                    docker pull ${BACKEND_IMAGE}
-                    docker run -d --name backend-app \
+                    sudo docker pull ${BACKEND_IMAGE}
+                    sudo docker run -d --name backend-app \
                         --network ${NETWORK_NAME} \
                         -p 8000:8000 \
                         ${BACKEND_IMAGE}
@@ -138,8 +138,8 @@ pipeline {
                 script {
                     // Pull and run Frontend container from Docker Hub
                     sh '''
-                    docker pull ${FRONTEND_IMAGE}
-                    docker run -d --name frontend-app \
+                    sudo docker pull ${FRONTEND_IMAGE}
+                    sudo docker run -d --name frontend-app \
                         --network ${NETWORK_NAME} \
                         -p 5000:5000 \
                         ${FRONTEND_IMAGE}
@@ -153,7 +153,7 @@ pipeline {
         always {
             script {
                 // Clean up dangling images and containers
-                sh 'docker system prune -f'
+                sh 'sudo docker system prune -f'
             }
         }
     }
