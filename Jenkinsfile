@@ -2,77 +2,148 @@ pipeline {
     agent any
 
     environment {
-        // Define the GCP Artifact Registry URL and credentials
-        DOCKER_REGISTRY = 'us-central1-docker.pkg.dev/wide-factor-429605-v2/nodeapp'
-        GCP_PROJECT_ID = 'wide-factor-429605-v2'
-        GCS_BUCKET = 'bucket2607'
-        SERVICE_ACCOUNT_FILE = 'gcp-service-account-key.json' // Name of the file to save the key
-        GCS_FILE_PATH = "gs://${GCS_BUCKET}/wide-factor-429605-v2-fdb5639c55b6.json"
+        // GitHub repository
+        GITHUB_REPO = 'https://github.com/pranjalmaheshwarii/GIIT_PROJECT.git'
+
+        // Docker Hub credentials (you must configure these credentials in Jenkins)
+        DOCKER_HUB_REPO = 'pranjal5273'
+        DOCKER_HUB_CREDENTIALS = 'docker-hub-credentials'  // Set this in Jenkins credentials manager
+
+        // Docker image names
+        FRONTEND_IMAGE = 'pranjal5273/frontend'
+        BACKEND_IMAGE = 'pranjal5273/backend'
+        MYSQL_IMAGE = 'pranjal5273/mysql-db'
+
+        // Docker network
+        NETWORK_NAME = 'project-network'
     }
 
     stages {
-        stage('Clone Repository') {
+        stage('Clone GitHub Repository') {
             steps {
-                git url: 'https://github.com/pranjalmaheshwarii/GIIT_PROJECT.git'
+                // Clone the repository from GitHub
+                git url: "${GITHUB_REPO}", branch: 'main'
             }
         }
 
-        stage('Download GCP Service Account Key') {
+        stage('Build Frontend Docker Image') {
             steps {
                 script {
-                    // Download the service account JSON key from GCS
-                    sh "gsutil cp ${GCS_FILE_PATH} ${SERVICE_ACCOUNT_FILE}"
+                    // Build the frontend Docker image from the FrontEnd folder
+                    sh 'docker build -t ${FRONTEND_IMAGE} ./FrontEnd'
                 }
             }
         }
 
-        stage('Authenticate with GCP') {
+        stage('Build Backend Docker Image') {
             steps {
                 script {
-                    // Authenticate with GCP using the downloaded service account key
-                    sh 'gcloud auth activate-service-account --key-file=${SERVICE_ACCOUNT_FILE}'
-                    sh 'gcloud config set project ${GCP_PROJECT_ID}'
-                    
-                    // Configure Docker to use the GCP Artifact Registry
-                    sh 'gcloud auth configure-docker us-central1-docker.pkg.dev'
+                    // Build the backend Docker image from the backend folder
+                    sh 'docker build -t ${BACKEND_IMAGE} ./backend'
                 }
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Build MySQL Docker Image') {
             steps {
                 script {
-                    // Build the Docker images
-                    sh 'docker build -t ${DOCKER_REGISTRY}/frontend-app:latest FrontEnd/'
-                    sh 'docker build -t ${DOCKER_REGISTRY}/backend-app:latest backend/'
-                    sh 'docker build -t ${DOCKER_REGISTRY}/mysql-container:latest mysql/'
+                    // Build the MySQL Docker image from the mysql folder
+                    sh 'docker build -t ${MYSQL_IMAGE} ./mysql'
                 }
             }
         }
 
-        stage('Run Docker Containers') {
+        stage('Login to Docker Hub') {
             steps {
                 script {
-                    // Stop and remove existing containers if they exist
-                    sh 'docker rm -f frontend-app || true'
-                    sh 'docker rm -f backend-app || true'
-                    sh 'docker rm -f mysql-container || true'
-
-                    // Run new containers
-                    sh 'docker run -d --name frontend-app -p 5000:5000 ${DOCKER_REGISTRY}/frontend-app:latest'
-                    sh 'docker run -d --name backend-app -p 8000:8000 ${DOCKER_REGISTRY}/backend-app:latest'
-                    sh 'docker run -d --name mysql-container -e MYSQL_ROOT_PASSWORD=Pranjal2607!@ -p 3306:3306 ${DOCKER_REGISTRY}/mysql-container:latest'
+                    // Login to Docker Hub using credentials configured in Jenkins
+                    sh 'echo $DOCKER_HUB_CREDENTIALS | docker login -u ${DOCKER_HUB_REPO} --password-stdin'
                 }
             }
         }
 
-        stage('Push Docker Images to GCP Artifact Registry') {
+        stage('Push Frontend Image to Docker Hub') {
             steps {
                 script {
-                    // Push the Docker images
-                    sh 'docker push ${DOCKER_REGISTRY}/frontend-app:latest'
-                    sh 'docker push ${DOCKER_REGISTRY}/backend-app:latest'
-                    sh 'docker push ${DOCKER_REGISTRY}/mysql-container:latest'
+                    // Push frontend image to Docker Hub
+                    sh 'docker push ${FRONTEND_IMAGE}'
+                }
+            }
+        }
+
+        stage('Push Backend Image to Docker Hub') {
+            steps {
+                script {
+                    // Push backend image to Docker Hub
+                    sh 'docker push ${BACKEND_IMAGE}'
+                }
+            }
+        }
+
+        stage('Push MySQL Image to Docker Hub') {
+            steps {
+                script {
+                    // Push MySQL image to Docker Hub
+                    sh 'docker push ${MYSQL_IMAGE}'
+                }
+            }
+        }
+
+        stage('Create Docker Network') {
+            steps {
+                script {
+                    // Create the project network if it doesn't exist
+                    sh '''
+                    if [ -z $(docker network ls --filter name=^${NETWORK_NAME}$ --format="{{ .Name }}") ]; then
+                        docker network create ${NETWORK_NAME}
+                    fi
+                    '''
+                }
+            }
+        }
+
+        stage('Pull and Run MySQL Container') {
+            steps {
+                script {
+                    // Pull and run MySQL container from Docker Hub
+                    sh '''
+                    docker pull ${MYSQL_IMAGE}
+                    docker run -d --name mysql-container \
+                        --network ${NETWORK_NAME} \
+                        -e MYSQL_ROOT_PASSWORD=Pranjal2607!@ \
+                        -p 3306:3306 \
+                        ${MYSQL_IMAGE}
+                    '''
+                }
+            }
+        }
+
+        stage('Pull and Run Backend Container') {
+            steps {
+                script {
+                    // Pull and run Backend container from Docker Hub
+                    sh '''
+                    docker pull ${BACKEND_IMAGE}
+                    docker run -d --name backend-app \
+                        --network ${NETWORK_NAME} \
+                        -p 8000:8000 \
+                        ${BACKEND_IMAGE}
+                    '''
+                }
+            }
+        }
+
+        stage('Pull and Run Frontend Container') {
+            steps {
+                script {
+                    // Pull and run Frontend container from Docker Hub
+                    sh '''
+                    docker pull ${FRONTEND_IMAGE}
+                    docker run -d --name frontend-app \
+                        --network ${NETWORK_NAME} \
+                        -p 5000:5000 \
+                        ${FRONTEND_IMAGE}
+                    '''
                 }
             }
         }
@@ -80,7 +151,10 @@ pipeline {
 
     post {
         always {
-            cleanWs() // Clean workspace after build
+            script {
+                // Clean up dangling images and containers
+                sh 'docker system prune -f'
+            }
         }
     }
 }
