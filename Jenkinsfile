@@ -30,7 +30,7 @@ pipeline {
             steps {
                 script {
                     // Build the frontend Docker image from the FrontEnd folder
-                    sh 'docker build -t ${FRONTEND_IMAGE} ./FrontEnd'
+                    sh 'sudo docker build -t ${FRONTEND_IMAGE} ./FrontEnd'
                 }
             }
         }
@@ -39,7 +39,7 @@ pipeline {
             steps {
                 script {
                     // Build the backend Docker image from the backend folder
-                    sh 'docker build -t ${BACKEND_IMAGE} ./backend'
+                    sh 'sudo docker build -t ${BACKEND_IMAGE} ./backend'
                 }
             }
         }
@@ -48,7 +48,7 @@ pipeline {
             steps {
                 script {
                     // Build the MySQL Docker image from the mysql folder
-                    sh 'docker build -t ${MYSQL_IMAGE} ./mysql'
+                    sh 'sudo docker build -t ${MYSQL_IMAGE} ./mysql'
                 }
             }
         }
@@ -58,7 +58,7 @@ pipeline {
         always {
             script {
                 // Clean up dangling images and containers
-                sh 'docker system prune -f'
+                sh 'sudo docker system prune -f'
             }
         }
     }
