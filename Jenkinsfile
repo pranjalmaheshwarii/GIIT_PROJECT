@@ -153,10 +153,8 @@ pipeline {
 
     post {
         always {
-            script {
-                // Clean up dangling images and containers
-                sh 'docker system prune -f'
-            }
+            // Optionally log a message indicating the build has completed
+            echo 'Pipeline completed.'
         }
     }
 }
