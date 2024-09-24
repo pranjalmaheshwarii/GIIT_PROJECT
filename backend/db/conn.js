@@ -9,15 +9,17 @@ const pool = mysql.createPool({
   database: 'employees_db',
   connectionLimit: 10 // Number of connections to create in the pool
 });
-// Open the MySQL connection
-connection.connect(error => {
+
+// Log pool connection status
+pool.getConnection((error, connection) => {
   if (error) {
     console.error("Error connecting to the MySQL database:", error.stack);
     return;
   }
   console.log("Successfully connected to the MySQL database.");
+  // Release the connection back to the pool
+  connection.release();
 });
 
 // Export the pool
 module.exports = pool.promise(); // Use promise-based API
-
