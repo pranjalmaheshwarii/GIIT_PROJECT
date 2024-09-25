@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    triggers {
+        // This triggers the pipeline when a GitHub pull request is merged
+        githubPush()
+    }
+
     environment {
         // GitHub repository
         GITHUB_REPO = 'https://github.com/pranjalmaheshwarii/GIIT_PROJECT.git'
