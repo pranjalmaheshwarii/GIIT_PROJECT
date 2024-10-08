@@ -19,8 +19,8 @@ pipeline {
         BACKEND_IMAGE = 'pranjal5273/backend'
         MYSQL_IMAGE = 'pranjal5273/mysql-db'
 
-        // Docker network
-        NETWORK_NAME = 'project-network'
+        // Kubernetes cluster context (you might need to set this up based on your configuration)
+        KUBE_CONTEXT = 'my-k8s-cluster'  // Change to your actual Kubernetes context
     }
 
     stages {
@@ -96,61 +96,16 @@ pipeline {
             }
         }
 
-        stage('Create Docker Network') {
+        stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Create the project network if it doesn't exist
-                    sh '''
-                    if [ -z $(docker network ls --filter name=^${NETWORK_NAME}$ --format="{{ .Name }}") ]; then
-                        docker network create ${NETWORK_NAME}
-                    fi
-                    '''
-                }
-            }
-        }
-
-        stage('Pull and Run MySQL Container') {
-            steps {
-                script {
-                    // Pull and run MySQL container from Docker Hub
-                    sh '''
-                    docker pull ${MYSQL_IMAGE}
-                    docker run -d --name mysql-container \
-                        --network ${NETWORK_NAME} \
-                        -e MYSQL_ROOT_PASSWORD=Pranjal2607!@ \
-                        -p 3306:3306 \
-                        ${MYSQL_IMAGE}
-                    '''
-                }
-            }
-        }
-
-        stage('Pull and Run Backend Container') {
-            steps {
-                script {
-                    // Pull and run Backend container from Docker Hub
-                    sh '''
-                    docker pull ${BACKEND_IMAGE}
-                    docker run -d --name backend-app \
-                        --network ${NETWORK_NAME} \
-                        -p 8000:8000 \
-                        ${BACKEND_IMAGE}
-                    '''
-                }
-            }
-        }
-
-        stage('Pull and Run Frontend Container') {
-            steps {
-                script {
-                    // Pull and run Frontend container from Docker Hub
-                    sh '''
-                    docker pull ${FRONTEND_IMAGE}
-                    docker run -d --name frontend-app \
-                        --network ${NETWORK_NAME} \
-                        -p 5000:5000 \
-                        ${FRONTEND_IMAGE}
-                    '''
+                    // Set the Kubernetes context (optional, depending on your setup)
+                    sh "kubectl config use-context ${KUBE_CONTEXT}"
+                    
+                    // Apply deployment YAML files
+                    sh 'kubectl apply -f frontend-deployment.yaml'
+                    sh 'kubectl apply -f backend-deployment.yaml'
+                    sh 'kubectl apply -f mysql-deployment.yaml'
                 }
             }
         }
@@ -163,3 +118,4 @@ pipeline {
         }
     }
 }
+
