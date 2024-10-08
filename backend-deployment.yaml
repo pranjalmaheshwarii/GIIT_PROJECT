@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: pranjal5273/backend
+        ports:
+        - containerPort: 8000  # Ensure this matches the port exposed by the backend container
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-app
+spec:
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000  # This is the backend container port
+  type: ClusterIP
