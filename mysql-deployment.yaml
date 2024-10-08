@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-deployment
+  labels:
+    app: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: pranjal5273/mysql-db
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "Pranjal2607!@"
+        - name: MYSQL_DATABASE
+          value: "employees_db"
+        ports:
+        - containerPort: 3306  # MySQL default port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-container
+spec:
+  selector:
+    app: mysql
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306  # MySQL container port
+  type: ClusterIP
