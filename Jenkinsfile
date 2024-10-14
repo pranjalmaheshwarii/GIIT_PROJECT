@@ -34,13 +34,12 @@ pipeline {
         stage('Authenticate with Google Cloud') {
             steps {
                 script {
-                    // Write the service account key to a file
-                    writeFile file: 'gcp-key.json', text: "${GCP_SERVICE_ACCOUNT_KEY}"
-
-                    // Authenticate with Google Cloud using the service account key
-                    sh 'gcloud auth activate-service-account --key-file=gcp-key.json'
-                    sh 'gcloud config set project wide-factor-429605-v2'
-                    sh 'gcloud container clusters get-credentials my-clutster --zone us-central1-a --project wide-factor-429605-v2'
+                    // Write the service account key to a file securely
+                    withCredentials([file(credentialsId: 'gcp-service-account-key', variable: 'GCP_KEY_FILE')]) {
+                        sh 'gcloud auth activate-service-account --key-file=$GCP_KEY_FILE'
+                        sh 'gcloud config set project wide-factor-429605-v2'
+                        sh 'gcloud container clusters get-credentials my-clutster --zone us-central1-a --project wide-factor-429605-v2'
+                    }
                 }
             }
         }
@@ -103,8 +102,7 @@ pipeline {
     post {
         always {
             echo 'Cleaning up...'
-            // Remove the service account key file
-            sh 'rm -f gcp-key.json'
+            // The GCP key file is handled securely by Jenkins and automatically cleaned up
         }
         success {
             echo 'Deployment completed successfully.'
