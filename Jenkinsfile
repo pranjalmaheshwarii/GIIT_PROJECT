@@ -20,7 +20,7 @@ pipeline {
         MYSQL_IMAGE = 'pranjal5273/mysql-db'
 
         // Kubernetes cluster context (you might need to set this up based on your configuration)
-        KUBE_CONTEXT = 'my-k8s-cluster'  // Change to your actual Kubernetes context
+        KUBE_CONTEXT = 'my-clutster'  // Change to your actual Kubernetes context
     }
 
     stages {
