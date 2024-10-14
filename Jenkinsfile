@@ -19,8 +19,8 @@ pipeline {
         BACKEND_IMAGE = 'pranjal5273/backend'
         MYSQL_IMAGE = 'pranjal5273/mysql-db'
 
-        // Kubernetes cluster context
-        KUBE_CONTEXT = 'gke_wide-factor-429605-v2_us-central1-a_my-clutster'  // Use the full context name
+        // GCP service account key
+        GCP_SERVICE_ACCOUNT_KEY = credentials('gcp-service-account-key') // Your GCP service account key credential ID
     }
 
     stages {
@@ -31,11 +31,25 @@ pipeline {
             }
         }
 
+        stage('Authenticate with Google Cloud') {
+            steps {
+                script {
+                    // Write the service account key to a file
+                    writeFile file: 'gcp-key.json', text: "${GCP_SERVICE_ACCOUNT_KEY}"
+
+                    // Authenticate with Google Cloud using the service account key
+                    sh 'gcloud auth activate-service-account --key-file=gcp-key.json'
+                    sh 'gcloud config set project wide-factor-429605-v2'
+                    sh 'gcloud container clusters get-credentials my-clutster --zone us-central1-a --project wide-factor-429605-v2'
+                }
+            }
+        }
+
         stage('Build Frontend Docker Image') {
             steps {
                 script {
-                    // Build the frontend Docker image from the FrontEnd folder
-                    sh 'docker build -t ${FRONTEND_IMAGE} ./FrontEnd'
+                    // Build the Docker image for the frontend
+                    sh "docker build -t ${FRONTEND_IMAGE} ./frontend"
                 }
             }
         }
@@ -43,8 +57,8 @@ pipeline {
         stage('Build Backend Docker Image') {
             steps {
                 script {
-                    // Build the backend Docker image from the backend folder
-                    sh 'docker build -t ${BACKEND_IMAGE} ./backend'
+                    // Build the Docker image for the backend
+                    sh "docker build -t ${BACKEND_IMAGE} ./backend"
                 }
             }
         }
@@ -52,46 +66,24 @@ pipeline {
         stage('Build MySQL Docker Image') {
             steps {
                 script {
-                    // Build the MySQL Docker image from the mysql folder
-                    sh 'docker build -t ${MYSQL_IMAGE} ./mysql'
+                    // Build the Docker image for MySQL
+                    sh "docker build -t ${MYSQL_IMAGE} ./mysql"
                 }
             }
         }
 
-        stage('Login to Docker Hub') {
+        stage('Push Docker Images to Docker Hub') {
             steps {
                 script {
-                    // Login to Docker Hub using credentials configured in Jenkins
-                    withCredentials([usernamePassword(credentialsId: DOCKER_HUB_CREDENTIALS, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                        sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
+                    // Login to Docker Hub
+                    withCredentials([usernamePassword(credentialsId: DOCKER_HUB_CREDENTIALS, passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                        sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
                     }
-                }
-            }
-        }
 
-        stage('Push Frontend Image to Docker Hub') {
-            steps {
-                script {
-                    // Push frontend image to Docker Hub
-                    sh 'docker push ${FRONTEND_IMAGE}'
-                }
-            }
-        }
-
-        stage('Push Backend Image to Docker Hub') {
-            steps {
-                script {
-                    // Push backend image to Docker Hub
-                    sh 'docker push ${BACKEND_IMAGE}'
-                }
-            }
-        }
-
-        stage('Push MySQL Image to Docker Hub') {
-            steps {
-                script {
-                    // Push MySQL image to Docker Hub
-                    sh 'docker push ${MYSQL_IMAGE}'
+                    // Push the images to Docker Hub
+                    sh "docker push ${FRONTEND_IMAGE}"
+                    sh "docker push ${BACKEND_IMAGE}"
+                    sh "docker push ${MYSQL_IMAGE}"
                 }
             }
         }
@@ -99,10 +91,7 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Set the Kubernetes context
-                    sh "kubectl config use-context ${KUBE_CONTEXT}"
-                    
-                    // Apply deployment YAML files
+                    // Deploy the frontend, backend, and MySQL to Kubernetes
                     sh 'kubectl apply -f frontend-deployment.yaml'
                     sh 'kubectl apply -f backend-deployment.yaml'
                     sh 'kubectl apply -f mysql-deployment.yaml'
@@ -113,8 +102,15 @@ pipeline {
 
     post {
         always {
-            // Optionally log a message indicating the build has completed
-            echo 'Pipeline completed.'
+            echo 'Cleaning up...'
+            // Remove the service account key file
+            sh 'rm -f gcp-key.json'
+        }
+        success {
+            echo 'Deployment completed successfully.'
+        }
+        failure {
+            echo 'Deployment failed.'
         }
     }
 }
