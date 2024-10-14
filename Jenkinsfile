@@ -20,7 +20,7 @@ pipeline {
         MYSQL_IMAGE = 'pranjal5273/mysql-db'
 
         // Kubernetes cluster context
-        KUBE_CONTEXT = 'gke_wide-factor-429605-v2_us-central1-a_my-clutster'  // Change to your actual Kubernetes context
+        KUBE_CONTEXT = 'gke_wide-factor-429605-v2_us-central1-a_my-clutster'  // Use the full context name
     }
 
     stages {
@@ -28,16 +28,6 @@ pipeline {
             steps {
                 // Clone the repository from GitHub
                 git url: "${GITHUB_REPO}", branch: 'main'
-            }
-        }
-
-        stage('Set Kube Context') {
-            steps {
-                script {
-                    // Set the Kubernetes context
-                    def kubeContextCommand = "kubectl config use-context ${KUBE_CONTEXT}"
-                    sh "${kubeContextCommand} || echo 'Failed to set context, check the context name'"
-                }
             }
         }
 
@@ -109,6 +99,9 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
+                    // Set the Kubernetes context
+                    sh "kubectl config use-context ${KUBE_CONTEXT}"
+                    
                     // Apply deployment YAML files
                     sh 'kubectl apply -f frontend-deployment.yaml'
                     sh 'kubectl apply -f backend-deployment.yaml'
