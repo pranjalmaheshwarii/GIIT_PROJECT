@@ -48,7 +48,7 @@ pipeline {
             steps {
                 script {
                     // Build the Docker image for the frontend
-                    sh "docker build -t ${FRONTEND_IMAGE} ./frontend"
+                    sh "docker build -t ${FRONTEND_IMAGE} ./FrontEnd"
                 }
             }
         }
