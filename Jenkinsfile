@@ -48,7 +48,7 @@ pipeline {
             steps {
                 script {
                     // Build the Docker image for the frontend
-                    sh "docker build -t ${FRONTEND_IMAGE} ./FrontEnd"
+                    sh "docker build -t ${FRONTEND_IMAGE} ./frontend"
                 }
             }
         }
@@ -94,6 +94,17 @@ pipeline {
                     sh 'kubectl apply -f frontend-deployment.yaml'
                     sh 'kubectl apply -f backend-deployment.yaml'
                     sh 'kubectl apply -f mysql-deployment.yaml'
+                }
+            }
+        }
+
+        stage('Check Deployment Status') {
+            steps {
+                script {
+                    // Check the status of the deployments, pods, and services
+                    sh 'kubectl get deployments'
+                    sh 'kubectl get pods'
+                    sh 'kubectl get services'
                 }
             }
         }
