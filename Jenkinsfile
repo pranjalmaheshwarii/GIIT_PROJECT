@@ -38,7 +38,7 @@ pipeline {
                     withCredentials([file(credentialsId: 'gcp-service-account-key', variable: 'GCP_KEY_FILE')]) {
                         sh 'gcloud auth activate-service-account --key-file=$GCP_KEY_FILE'
                         sh 'gcloud config set project wide-factor-429605-v2'
-                        sh 'gcloud container clusters get-credentials my-clutster --zone us-central1-a --project wide-factor-429605-v2'
+                        sh 'gcloud container clusters get-credentials my-cluster --zone us-central1-a --project wide-factor-429605-v2'
                     }
                 }
             }
