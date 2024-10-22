@@ -21,6 +21,9 @@ pipeline {
 
         // Docker network
         NETWORK_NAME = 'project-network'
+
+        // MySQL root password credential ID
+        MYSQL_ROOT_PASSWORD_CREDENTIALS = 'mysql-root-password'  // Set this in Jenkins credentials manager
     }
 
     stages {
@@ -112,15 +115,17 @@ pipeline {
         stage('Pull and Run MySQL Container') {
             steps {
                 script {
-                    // Pull and run MySQL container from Docker Hub
-                    sh '''
-                    docker pull ${MYSQL_IMAGE}
-                    docker run -d --name mysql-container \
-                        --network ${NETWORK_NAME} \
-                        -e MYSQL_ROOT_PASSWORD=Pranjal2607!@ \
-                        -p 3306:3306 \
-                        ${MYSQL_IMAGE}
-                    '''
+                    // Pull and run MySQL container from Docker Hub, use Jenkins credentials for the password
+                    withCredentials([string(credentialsId: MYSQL_ROOT_PASSWORD_CREDENTIALS, variable: 'MYSQL_ROOT_PASSWORD')]) {
+                        sh '''
+                        docker pull ${MYSQL_IMAGE}
+                        docker run -d --name mysql-container \
+                            --network ${NETWORK_NAME} \
+                            -e MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD} \
+                            -p 3306:3306 \
+                            ${MYSQL_IMAGE}
+                        '''
+                    }
                 }
             }
         }
