@@ -37,7 +37,7 @@ pipeline {
                     // Write the service account key to a file securely
                     withCredentials([file(credentialsId: 'gcp-service-account-key', variable: 'GCP_KEY_FILE')]) {
                         sh 'gcloud auth activate-service-account --key-file=$GCP_KEY_FILE'
-                        sh 'gcloud config set project wide-factor-429605-v2'
+                        sh 'gcloud config set project black-outlet-438804-p8'
                         sh 'gcloud container clusters get-credentials my-cluster --zone us-central1-a --project black-outlet-438804-p8'
                     }
                 }
