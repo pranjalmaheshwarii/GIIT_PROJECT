@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     triggers {
-        // This triggers the pipeline when a GitHub pull request is merged
+        // Trigger the pipeline on a GitHub push
         githubPush()
     }
 
@@ -10,21 +10,38 @@ pipeline {
         // GitHub repository
         GITHUB_REPO = 'https://github.com/pranjalmaheshwarii/GIIT_PROJECT.git'
 
-        // Docker Hub credentials (you must configure these credentials in Jenkins)
+        // Docker Hub credentials
         DOCKER_HUB_REPO = 'pranjal5273'
-        DOCKER_HUB_CREDENTIALS = 'docker-hub-credentials'  // Set this in Jenkins credentials manager
+        DOCKER_HUB_CREDENTIALS = 'docker-hub-credentials' // Set this in Jenkins credentials manager
 
         // Docker image names
         FRONTEND_IMAGE = 'pranjal5273/frontend'
         BACKEND_IMAGE = 'pranjal5273/backend'
         MYSQL_IMAGE = 'pranjal5273/mysql-db'
+
+        // Kubernetes deployment files
+        FRONTEND_DEPLOYMENT = 'frontend-deployment.yaml'
+        BACKEND_DEPLOYMENT = 'backend-deployment.yaml'
+        MYSQL_DEPLOYMENT = 'mysql-deployment.yaml'
     }
 
     stages {
         stage('Clone GitHub Repository') {
             steps {
                 // Clone the repository from GitHub
-                git url: "${GITHUB_REPO}", branch: 'main'
+                git url: "${GITHUB_REPO}", branch: 'k8s-another'
+            }
+        }
+
+        stage('Authenticate with Google Cloud') {
+            steps {
+                script {
+                    // Authenticate and connect to the Kubernetes cluster
+                    sh '''
+                    gcloud config set project black-outlet-438804-p8
+                    gcloud container clusters get-credentials my --zone us-central1 --project black-outlet-438804-p8
+                    '''
+                }
             }
         }
 
@@ -75,9 +92,9 @@ pipeline {
             steps {
                 script {
                     // Deploy the frontend, backend, and MySQL to Kubernetes
-                    sh 'kubectl apply -f frontend-deployment.yaml'
-                    sh 'kubectl apply -f backend-deployment.yaml'
-                    sh 'kubectl apply -f mysql-deployment.yaml'
+                    sh "kubectl apply -f ${FRONTEND_DEPLOYMENT}"
+                    sh "kubectl apply -f ${BACKEND_DEPLOYMENT}"
+                    sh "kubectl apply -f ${MYSQL_DEPLOYMENT}"
                 }
             }
         }
