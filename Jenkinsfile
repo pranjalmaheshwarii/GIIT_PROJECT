@@ -18,9 +18,6 @@ pipeline {
         FRONTEND_IMAGE = 'pranjal5273/frontend'
         BACKEND_IMAGE = 'pranjal5273/backend'
         MYSQL_IMAGE = 'pranjal5273/mysql-db'
-
-        // GCP service account key
-        GCP_SERVICE_ACCOUNT_KEY = credentials('gcp-service-account-key') // Your GCP service account key credential ID
     }
 
     stages {
@@ -28,19 +25,6 @@ pipeline {
             steps {
                 // Clone the repository from GitHub
                 git url: "${GITHUB_REPO}", branch: 'main'
-            }
-        }
-
-        stage('Authenticate with Google Cloud') {
-            steps {
-                script {
-                    // Write the service account key to a file securely
-                    withCredentials([file(credentialsId: 'gcp-service-account-key', variable: 'GCP_KEY_FILE')]) {
-                        sh 'gcloud auth activate-service-account --key-file=$GCP_KEY_FILE'
-                        sh 'gcloud config set project black-outlet-438804-p8'
-                        sh 'gcloud container clusters get-credentials ema-deployment-cluster --zone us-central1 --project black-outlet-438804-p8'
-                    }
-                }
             }
         }
 
@@ -113,7 +97,6 @@ pipeline {
     post {
         always {
             echo 'Cleaning up...'
-            // The GCP key file is handled securely by Jenkins and automatically cleaned up
         }
         success {
             echo 'Deployment completed successfully.'
