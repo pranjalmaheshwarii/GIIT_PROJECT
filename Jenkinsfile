@@ -33,11 +33,20 @@ pipeline {
             }
         }
 
-        stage('Authenticate with Google Cloud') {
+        stage('Install kubectl and Authenticate with Google Cloud') {
             steps {
                 script {
-                    // Authenticate and connect to the Kubernetes cluster
+                    // Install kubectl if not already installed
                     sh '''
+                    sudo apt-get update
+                    sudo apt-get install -y apt-transport-https ca-certificates curl
+                    sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+                    echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+                    sudo apt-get update
+                    sudo apt-get install -y kubectl
+                    kubectl version --client
+
+                    # Authenticate and connect to the Kubernetes cluster
                     gcloud config set project black-outlet-438804-p8
                     gcloud container clusters get-credentials my --zone us-central1 --project black-outlet-438804-p8
                     '''
