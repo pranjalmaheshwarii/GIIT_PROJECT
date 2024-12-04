@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     triggers {
-        // Trigger the pipeline on a GitHub push
+        // This triggers the pipeline when a GitHub pull request is merged
         githubPush()
     }
 
@@ -10,55 +10,35 @@ pipeline {
         // GitHub repository
         GITHUB_REPO = 'https://github.com/pranjalmaheshwarii/GIIT_PROJECT.git'
 
-        // Docker Hub credentials
+        // Docker Hub credentials (you must configure these credentials in Jenkins)
         DOCKER_HUB_REPO = 'pranjal5273'
-        DOCKER_HUB_CREDENTIALS = 'docker-hub-credentials' // Set this in Jenkins credentials manager
+        DOCKER_HUB_CREDENTIALS = 'docker-hub-credentials'  // Set this in Jenkins credentials manager
 
         // Docker image names
         FRONTEND_IMAGE = 'pranjal5273/frontend'
         BACKEND_IMAGE = 'pranjal5273/backend'
         MYSQL_IMAGE = 'pranjal5273/mysql-db'
 
-        // Kubernetes deployment files
-        FRONTEND_DEPLOYMENT = 'frontend-deployment.yaml'
-        BACKEND_DEPLOYMENT = 'backend-deployment.yaml'
-        MYSQL_DEPLOYMENT = 'mysql-deployment.yaml'
+        // Docker network
+        NETWORK_NAME = 'project-network'
+
+        // MySQL root password credential ID
+        MYSQL_ROOT_PASSWORD_CREDENTIALS = 'mysql-root-password'  // Set this in Jenkins credentials manager
     }
 
     stages {
         stage('Clone GitHub Repository') {
             steps {
                 // Clone the repository from GitHub
-                git url: "${GITHUB_REPO}", branch: 'k8s-another'
-            }
-        }
-
-        stage('Install kubectl and Authenticate with Google Cloud') {
-            steps {
-                script {
-                    // Install kubectl if not already installed
-                    sh '''
-                    sudo apt-get update
-                    sudo apt-get install -y apt-transport-https ca-certificates curl
-                    sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
-                    echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
-                    sudo apt-get update
-                    sudo apt-get install -y kubectl
-                    kubectl version --client
-
-                    # Authenticate and connect to the Kubernetes cluster
-                    gcloud config set project black-outlet-438804-p8
-                    gcloud container clusters get-credentials my --zone us-central1 --project black-outlet-438804-p8
-                    '''
-                }
+                git url: "${GITHUB_REPO}", branch: 'main'
             }
         }
 
         stage('Build Frontend Docker Image') {
             steps {
                 script {
-                    // Build the Docker image for the frontend
-                    sh "docker build -t ${FRONTEND_IMAGE} ./FrontEnd"
+                    // Build the frontend Docker image from the FrontEnd folder
+                    sh 'docker build -t ${FRONTEND_IMAGE} ./FrontEnd'
                 }
             }
         }
@@ -66,8 +46,8 @@ pipeline {
         stage('Build Backend Docker Image') {
             steps {
                 script {
-                    // Build the Docker image for the backend
-                    sh "docker build -t ${BACKEND_IMAGE} ./backend"
+                    // Build the backend Docker image from the backend folder
+                    sh 'docker build -t ${BACKEND_IMAGE} ./backend'
                 }
             }
         }
@@ -75,24 +55,59 @@ pipeline {
         stage('Build MySQL Docker Image') {
             steps {
                 script {
-                    // Build the Docker image for MySQL
-                    sh "docker build -t ${MYSQL_IMAGE} ./mysql"
+                    // Build the MySQL Docker image from the mysql folder
+                    sh 'docker build -t ${MYSQL_IMAGE} ./mysql'
                 }
             }
         }
 
-        stage('Push Docker Images to Docker Hub') {
+        stage('Login to Docker Hub') {
             steps {
                 script {
-                    // Login to Docker Hub
-                    withCredentials([usernamePassword(credentialsId: DOCKER_HUB_CREDENTIALS, passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
-                        sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
+                    // Login to Docker Hub using credentials configured in Jenkins
+                    withCredentials([usernamePassword(credentialsId: DOCKER_HUB_CREDENTIALS, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
                     }
+                }
+            }
+        }
 
-                    // Push the images to Docker Hub
-                    sh "docker push ${FRONTEND_IMAGE}"
-                    sh "docker push ${BACKEND_IMAGE}"
-                    sh "docker push ${MYSQL_IMAGE}"
+        stage('Push Frontend Image to Docker Hub') {
+            steps {
+                script {
+                    // Push frontend image to Docker Hub
+                    sh 'docker push ${FRONTEND_IMAGE}'
+                }
+            }
+        }
+
+        stage('Push Backend Image to Docker Hub') {
+            steps {
+                script {
+                    // Push backend image to Docker Hub
+                    sh 'docker push ${BACKEND_IMAGE}'
+                }
+            }
+        }
+
+        stage('Push MySQL Image to Docker Hub') {
+            steps {
+                script {
+                    // Push MySQL image to Docker Hub
+                    sh 'docker push ${MYSQL_IMAGE}'
+                }
+            }
+        }
+
+        stage('Create Docker Network') {
+            steps {
+                script {
+                    // Create the project network if it doesn't exist
+                    sh '''
+                    if [ -z $(docker network ls --filter name=^${NETWORK_NAME}$ --format="{{ .Name }}") ]; then
+                        docker network create ${NETWORK_NAME}
+                    fi
+                    '''
                 }
             }
         }
@@ -100,21 +115,47 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Deploy the frontend, backend, and MySQL to Kubernetes
-                    sh "kubectl apply -f ${FRONTEND_DEPLOYMENT}"
-                    sh "kubectl apply -f ${BACKEND_DEPLOYMENT}"
-                    sh "kubectl apply -f ${MYSQL_DEPLOYMENT}"
+                    // Pull and run MySQL container from Docker Hub, use Jenkins credentials for the password
+                    withCredentials([string(credentialsId: MYSQL_ROOT_PASSWORD_CREDENTIALS, variable: 'MYSQL_ROOT_PASSWORD')]) {
+                        sh '''
+                        docker pull ${MYSQL_IMAGE}
+                        docker run -d --name mysql-container \
+                            --network ${NETWORK_NAME} \
+                            -e MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD} \
+                            -p 3306:3306 \
+                            ${MYSQL_IMAGE}
+                        '''
+                    }
                 }
             }
         }
 
-        stage('Check Deployment Status') {
+        stage('Check deployment status ') {
             steps {
                 script {
-                    // Check the status of the deployments, pods, and services
-                    sh 'kubectl get deployments'
-                    sh 'kubectl get pods'
-                    sh 'kubectl get services'
+                    // Pull and run Backend container from Docker Hub
+                    sh '''
+                    docker pull ${BACKEND_IMAGE}
+                    docker run -d --name backend-app \
+                        --network ${NETWORK_NAME} \
+                        -p 8000:8000 \
+                        ${BACKEND_IMAGE}
+                    '''
+                }
+            }
+        }
+
+        stage('deploymemnt complete') {
+            steps {
+                script {
+                    // Pull and run Frontend container from Docker Hub
+                    sh '''
+                    docker pull ${FRONTEND_IMAGE}
+                    docker run -d --name frontend-app \
+                        --network ${NETWORK_NAME} \
+                        -p 5000:5000 \
+                        ${FRONTEND_IMAGE}
+                    '''
                 }
             }
         }
@@ -122,13 +163,8 @@ pipeline {
 
     post {
         always {
-            echo 'Cleaning up...'
-        }
-        success {
-            echo 'Deployment completed successfully.'
-        }
-        failure {
-            echo 'Deployment failed.'
+            // Optionally log a message indicating the build has completed
+            echo 'Pipeline completed.'
         }
     }
 }
